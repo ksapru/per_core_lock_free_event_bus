@@ -24,7 +24,6 @@ public:
     return true;
   }
 
-  // Consumer (Process Thread) calls this
   bool pop(T &item) {
     size_t tail = tail_.load(std::memory_order_acquire);
     size_t head = head_.load(std::memory_order_relaxed);
@@ -41,9 +40,6 @@ public:
 private:
   const size_t capacity_;
   T *const buffer_;
-
-  // We align these to 64 bytes to prevent "False Sharing" 
-  // (keeping each worker on its own side of the road)
   alignas(64) std::atomic<size_t> head_;
   alignas(64) std::atomic<size_t> tail_;
 };
