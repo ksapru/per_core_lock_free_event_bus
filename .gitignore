@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+generator
+receiver
+*.o
+*.obj
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+.vs/
+out/

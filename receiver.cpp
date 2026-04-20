@@ -45,26 +45,60 @@ int main() {
   });
 
   // 4. Start WORKER 1: The Network Loop (Producer)
-  char buffer[2048];
-  struct sockaddr_in client_addr;
-  socklen_t client_len = sizeof(client_addr);
+#ifdef __linux__
+  const int VLEN = 64;
+  struct mmsghdr msgvec[VLEN];
+  struct iovec iov[VLEN];
+  char bufs[VLEN][2048];
+  
+  memset(msgvec, 0, sizeof(msgvec));
+  for (int i = 0; i < VLEN; i++) {
+    iov[i].iov_base = bufs[i];
+    iov[i].iov_len = sizeof(bufs[i]);
+    msgvec[i].msg_hdr.msg_iov = &iov[i];
+    msgvec[i].msg_hdr.msg_iovlen = 1;
+  }
 
   while (true) {
-    int n = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr *)&client_addr, &client_len);
-    
-    if (n > 0) {
+    int num_msgs = recvmmsg(sock, msgvec, VLEN, 0, NULL);
+    if (num_msgs < 0) {
+      perror("recvmmsg failed");
+      break;
+    }
+
+    for (int i = 0; i < num_msgs; i++) {
+      char* packet_buf = (char*)msgvec[i].msg_hdr.msg_iov->iov_base;
+      int packet_len = msgvec[i].msg_len;
+
+      if (packet_len > 0) {
+        PacketHeader* header = (PacketHeader*)packet_buf;
+        MarketDataMsg* msg_ptr = (MarketDataMsg*)(packet_buf + sizeof(PacketHeader));
+        
+        for (int j = 0; j < header->msg_count; j++) {
+          while (!rb.push(msg_ptr[j])) { 
+            std::this_thread::yield(); 
+          }
+        }
+      }
+    }
+  }
+#else
+  // Fallback for non-Linux platforms (e.g. macOS)
+  printf("Note: recvmmsg not supported on this platform. Falling back to recvfrom.\n");
+  char buffer[2048];
+  while (true) {
+    ssize_t packet_len = recv(sock, buffer, sizeof(buffer), 0);
+    if (packet_len > 0) {
       PacketHeader* header = (PacketHeader*)buffer;
       MarketDataMsg* msg_ptr = (MarketDataMsg*)(buffer + sizeof(PacketHeader));
-      
-      // Push each message from the packet into the Event Bus
-      for (int i = 0; i < header->msg_count; i++) {
-        // If the bus is full, we just keep trying until there's room
-        while (!rb.push(msg_ptr[i])) { 
+      for (int j = 0; j < header->msg_count; j++) {
+        while (!rb.push(msg_ptr[j])) { 
           std::this_thread::yield(); 
         }
       }
     }
   }
+#endif
 
   processor.join();
   return 0;

@@ -1,67 +1,70 @@
 # Per-Core Lock-Free Event Bus
 
-A high-performance, low-latency event distribution system designed for financial market data and real-time packet processing. This project leverages **DPDK (Data Plane Development Kit)** for kernel-bypass networking and a **lock-free per-core architecture** to minimize contention and maximize throughput.
+A high-performance, low-latency event distribution system designed for financial market data and real-time packet processing. This project leverages a **lock-free SPSC (Single Producer Single Consumer) architecture** and Linux-native optimizations to minimize contention and maximize throughput.
 
 ## 🚀 Overview
 
-The system is designed to handle millions of events per second by assigning dedicated processing cores to specific event streams. By using lock-free ring buffers, we eliminate the overhead of mutexes and context switches in the critical path.
+The system handles millions of events per second by decoupling network I/O from data processing using a lock-free ring buffer. This architecture eliminates mutex contention and reduces context switches in the critical path.
 
 ### Key Components
 
-- **`generator.cpp`**: A high-speed UDP packet generator that simulates binary market data feeds (e.g., NASDAQ ITCH or binary JSON).
-- **`dpdk_receiver.cpp`**: A DPDK-based ingress engine that pulls packets directly from the NIC into userspace.
-- **`ring_buffer.h`**: A single-producer, single-consumer (SPSC) lock-free ring buffer implementation for inter-core communication.
+- **`receiver.cpp`**: A multi-threaded Linux receiver utilizing `recvmmsg` for vectorized packet capture, significantly reducing system call overhead.
+- **`generator.cpp`**: A UDP burst generator that simulates high-frequency market data feeds with sequence tracking and micro-benchmarking.
+- **`ring_buffer.h`**: A thread-safe, lock-free SPSC ring buffer using `std::atomic` with `memory_order_acquire/release` and `alignas(64)` to prevent false sharing.
+- **`common.hpp`**: Shared binary message definitions (`MarketDataMsg`) with `#pragma pack(1)` for zero-copy compatibility.
 
 ---
 
-## 🛠 Prerequisites
+## 🛠 Deployment: Google Compute Engine (GCE)
 
-To build and run the receiver, you need:
+This system is optimized for high-performance Linux environments. We verified the implementation on a GCE instance with the following specs:
+- **Instance Type**: `e2-standard-4` (4 vCPUs, 16GB RAM)
+- **OS**: Debian 12 (Linux 6.1+)
+- **Network**: Standard tiered networking with UDP optimization.
 
-- **Linux** (Recommended for DPDK support)
-- **DPDK 22.11+**
-- **g++ 11+** or **clang 14+**
-- **Hugepages** configured on your system
+### Performance Milestone
+Successfully deployed and ran the consumer-producer loop on GCE, achieving high-throughput event distribution between dedicated network capture and processing threads.
 
 ---
 
 ## 🏗 Build Instructions
 
-### Building the Generator
-The generator is a standard C++ application:
+This project uses **CMake**. To build the components, run:
+
 ```bash
-g++ -O3 generator.cpp -o generator
+mkdir build && cd build
+cmake ..
+make
 ```
 
-### Building the DPDK Receiver
-The receiver requires DPDK libraries and `pkg-config`:
-```bash
-g++ -O3 dpdk_receiver.cpp -o dpdk_receiver $(pkg-config --cflags --libs libdpdk)
-```
+These commands will generate the `generator` and `receiver` binaries in the `build` directory.
 
 ---
 
 ## 🚦 Usage
 
-1. **Start the Generator**:
+1. **Start the Receiver**:
+   ```bash
+   ./receiver
+   ```
+
+2. **Start the Generator**:
    ```bash
    ./generator
    ```
 
-2. **Start the Receiver**:
-   Ensure you have bound your NIC to a DPDK-compatible driver (e.g., `uio_pci_generic` or `vfio-pci`).
-   ```bash
-   sudo ./dpdk_receiver -l 0-3 -n 4 -- -p 0x1
-   ```
+The receiver will bind to port `9000` and start processing packets pushed through the event bus.
 
 ---
 
 ## 📈 Roadmap
 
-- [ ] Implement SPSC lock-free ring buffer in `ring_buffer.h`.
-- [ ] Complete DPDK EAL initialization in `dpdk_receiver.cpp`.
-- [ ] Add support for multi-core distribution (RSS).
-- [ ] Implement zero-copy deserialization for Market Data messages.
+- [x] Implement SPSC lock-free ring buffer with cache-line alignment.
+- [x] Transition to `recvmmsg` for batch packet reception.
+- [x] Verify deployment on Linux GCE VM.
+- [ ] Implement NUMA-aware core pinning (CPU affinity).
+- [ ] Add DPDK kernel-bypass engine for <1μs latency.
+- [ ] Implement zero-copy partial deserialization.
 
 ## ⚖ License
 MIT License - see [LICENSE](LICENSE) for details.
