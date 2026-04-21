@@ -2,7 +2,7 @@
 
 A high-performance, low-latency event distribution system designed for financial market data and real-time packet processing. This project leverages a **lock-free SPSC (Single Producer Single Consumer) architecture** and Linux-native optimizations to minimize contention and maximize throughput.
 
-## 🚀 Overview
+## Overview
 
 The system handles millions of events per second by decoupling network I/O from data processing using a lock-free ring buffer. This architecture eliminates mutex contention and reduces context switches in the critical path.
 
@@ -15,7 +15,7 @@ The system handles millions of events per second by decoupling network I/O from 
 
 ---
 
-## 🛠 Deployment: Google Compute Engine (GCE)
+## Deployment: Google Compute Engine (GCE)
 
 This system is optimized for high-performance Linux environments. We verified the implementation on a GCE instance with the following specs:
 - **Instance Type**: `e2-standard-4` (4 vCPUs, 16GB RAM)
@@ -41,7 +41,7 @@ These commands will generate the `generator` and `receiver` binaries in the `bui
 
 ---
 
-## 🚦 Usage
+## Usage
 
 1. **Start the Receiver**:
    ```bash
@@ -57,7 +57,7 @@ The receiver will bind to port `9000` and start processing packets pushed throug
 
 ---
 
-## 📈 Roadmap
+## Roadmap
 
 - [x] Implement SPSC lock-free ring buffer with cache-line alignment.
 - [x] Transition to `recvmmsg` for batch packet reception.
