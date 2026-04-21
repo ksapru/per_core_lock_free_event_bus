@@ -27,7 +27,7 @@ Successfully deployed and ran the consumer-producer loop on GCE, achieving high-
 
 ---
 
-## 🏗 Build Instructions
+## Build Instructions
 
 This project uses **CMake**. To build the components, run:
 
