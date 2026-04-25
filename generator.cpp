@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdint>
@@ -8,13 +9,14 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 #include "common.hpp"
 
 uint64_t now_ns() {
   timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts);
-  return (uint64_t)ts.tv_sec * 1e9 + ts.tv_nsec;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
 int main() {
@@ -31,12 +33,17 @@ int main() {
   uint64_t total_packets = 0;
   const uint64_t packet_limit = 10000000; // 10 million packets
 
+  std::vector<uint64_t> latencies;
+  latencies.reserve(packet_limit);
+
   std::cout << "Starting generator, sending " << packet_limit << " packets..." << std::endl;
 
-  auto start = std::chrono::high_resolution_clock::now();
+  uint64_t start_ns = now_ns();
 
   while (total_packets < packet_limit) {
     for (int burst = 0; burst < 10000 && total_packets < packet_limit; burst++) {
+      uint64_t p_start = now_ns();
+
       PacketHeader *header = (PacketHeader *)buffer;
       header->seq_start = global_seq;
       uint16_t msg_count = rand() % 10 + 1;
@@ -68,20 +75,36 @@ int main() {
 
       sendto(fd, buffer, packet_size, 0, (sockaddr *)&addr, sizeof(addr));
 
+      uint64_t p_end = now_ns();
+      latencies.push_back(p_end - p_start);
+
       total_packets++;
       if (total_packets % 1000000 == 0) {
-        std::cout << "Sent " << total_packets << " packets. Last seq: " << global_seq - 1 << std::endl;
+        uint64_t now = now_ns();
+        double elapsed = (now - start_ns) / 1e9;
+        uint32_t current_messages = global_seq - 1;
+        std::cout << "Rate: " << current_messages / elapsed << " msgs/sec (Sent " << total_packets << " packets)" << std::endl;
       }
     }
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-
-  double seconds = std::chrono::duration<double>(end - start).count();
+  uint64_t end_ns = now_ns();
+  double seconds = (end_ns - start_ns) / 1e9;
   uint32_t total_messages = global_seq - 1;
   double throughput = total_messages / seconds;
 
+  std::cout << "\nFinal Results:" << std::endl;
   std::cout << "Throughput: " << throughput << " msgs/sec\n";
+
+  if (!latencies.empty()) {
+    std::sort(latencies.begin(), latencies.end());
+    std::cout << "Latency (ns):"
+              << " P50: " << latencies[latencies.size() * 0.50]
+              << " P90: " << latencies[latencies.size() * 0.90]
+              << " P99: " << latencies[latencies.size() * 0.99]
+              << " P99.9: " << latencies[latencies.size() * 0.999]
+              << " P99.99: " << latencies[latencies.size() * 0.9999] << std::endl;
+  }
 
   close(fd);
   return 0;
