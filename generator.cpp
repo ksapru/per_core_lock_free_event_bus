@@ -1,11 +1,12 @@
 #include <arpa/inet.h>
-#include <iostream>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <iostream>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "common.hpp"
@@ -28,9 +29,14 @@ int main() {
 
   char buffer[1500];
   uint64_t total_packets = 0;
+  const uint64_t packet_limit = 10000000; // 10 million packets
 
-  while (true) {
-    for (int burst = 0; burst < 10000; burst++) {
+  std::cout << "Starting generator, sending " << packet_limit << " packets..." << std::endl;
+
+  auto start = std::chrono::high_resolution_clock::now();
+
+  while (total_packets < packet_limit) {
+    for (int burst = 0; burst < 10000 && total_packets < packet_limit; burst++) {
       PacketHeader *header = (PacketHeader *)buffer;
       header->seq_start = global_seq;
       uint16_t msg_count = rand() % 10 + 1;
@@ -68,6 +74,15 @@ int main() {
       }
     }
   }
+
+  auto end = std::chrono::high_resolution_clock::now();
+
+  double seconds = std::chrono::duration<double>(end - start).count();
+  uint32_t total_messages = global_seq - 1;
+  double throughput = total_messages / seconds;
+
+  std::cout << "Throughput: " << throughput << " msgs/sec\n";
+
   close(fd);
   return 0;
 }
