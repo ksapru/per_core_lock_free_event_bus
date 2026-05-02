@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Threading support
 find_package(Threads REQUIRED)
 
+# HDR Histogram support
+find_package(hdr_histogram REQUIRED)
+
 # Common include directory (current dir)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -16,7 +19,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
 
 # 1. Generator Target
 add_executable(generator generator.cpp)
-target_link_libraries(generator PRIVATE Threads::Threads)
+target_link_libraries(generator PRIVATE Threads::Threads hdr_histogram::hdr_histogram)
 
 # 2. Receiver Target
 add_executable(receiver receiver.cpp)
