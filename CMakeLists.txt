@@ -25,6 +25,10 @@ target_link_libraries(generator PRIVATE Threads::Threads hdr_histogram::hdr_hist
 add_executable(receiver receiver.cpp)
 target_link_libraries(receiver PRIVATE Threads::Threads)
 
+# 3. Benchmark Target
+add_executable(bench_ring_buffer bench_ring_buffer.cpp)
+target_link_libraries(bench_ring_buffer PRIVATE Threads::Threads)
+
 # Optional: Add testing target later
 # if(BUILD_TESTING)
 #   add_executable(test_ring_buffer test_ring_buffer.cpp)

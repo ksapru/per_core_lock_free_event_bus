@@ -30,7 +30,10 @@ void set_affinity(int core_id) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(core_id, &cpuset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+        std::cerr << "[WARNING] Failed to set CPU affinity for core " << core_id << ": " << rc << std::endl;
+    }
 #endif
 }
 
@@ -58,7 +61,8 @@ int main() {
         for (size_t i = 0; i < num_msgs; ++i) {
             msg.seq = i;
             if (i % sample_interval == 0) {
-                msg.timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+                msg.timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
             }
             while (!rb.push(msg)) {
                 CPU_PAUSE(); 
@@ -81,20 +85,21 @@ int main() {
                 exit(1);
             }
             if (i % sample_interval == 0) {
-                uint64_t now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+                uint64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
                 latencies_sum += (now - msg.timestamp);
                 sampled_count++;
             }
         }
     });
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = std::chrono::steady_clock::now();
     start_flag.store(true);
 
     producer.join();
     consumer.join();
 
-    auto end_time = std::chrono::high_resolution_clock::now();
+    auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end_time - start_time;
 
     double throughput = (num_msgs / diff.count()) / 1'000'000.0;
