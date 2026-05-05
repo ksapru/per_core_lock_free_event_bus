@@ -6,6 +6,10 @@ A high-performance, low-latency event distribution system designed for financial
 
 The system handles millions of events per second by decoupling network I/O from data processing using a lock-free ring buffer. This architecture eliminates mutex contention and reduces context switches in the critical path.
 
+### NAK Bridge Architecture
+The event bus implementation is designed to support a **NAK (Native Agent Kernel) bridge** for reliable multicast delivery. By utilizing a sequenced lock-free bus, the system allows for lightweight retransmission protocols where consumers only signal the producer upon detecting a gap in sequence numbers, maintaining ultra-low latency in the common case while ensuring eventual consistency for missed packets.
+
+
 ### Key Components
 
 - **`receiver.cpp`**: A multi-threaded Linux receiver utilizing `recvmmsg` for vectorized packet capture, significantly reducing system call overhead.
@@ -32,8 +36,8 @@ The system's performance is measured using the integrated micro-benchmarking too
 ### Throughput
 - **Steady State**: ~1,250,000 msgs/sec
 
-### Latency (Tick-to-Wire)
-Latency measured from message preparation to `sendto` completion:
+### Tick-to-Wire Latency
+Latency measured from message preparation to `sendto` completion (this represents the internal processing and network stack overhead, excluding full end-to-end delivery):
 
 | Percentile | Latency (ns) |
 | :--- | :--- |
@@ -71,6 +75,24 @@ These commands will generate the `generator` and `receiver` binaries in the `bui
    ```
 
 The receiver will bind to port `9000` and start processing packets pushed through the event bus.
+
+## Reproducing Benchmarks
+
+To reproduce the performance results on a Linux-based system (e.g., GCE e2-standard-4):
+
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+
+# Terminal 1: Start the receiver in quiet mode
+./receiver --quiet
+
+# Terminal 2: Start the generator to push load
+./generator
+```
+
+The generator will output latency histograms and throughput statistics upon completion.
 
 ---
 

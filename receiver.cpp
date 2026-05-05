@@ -7,7 +7,12 @@
 #include "common.hpp"
 #include "ring_buffer.h"
 
-int main() {
+int main(int argc, char** argv) {
+  bool quiet = false;
+  if (argc > 1 && strcmp(argv[1], "--quiet") == 0) {
+    quiet = true;
+  }
+
   // 1. Setup UDP Socket
   int sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
@@ -29,17 +34,21 @@ int main() {
   // We'll store up to 64k messages in the bus
   RingBuffer<MarketDataMsg> rb(65536);
 
-  printf("Receiver is active!\n");
-  printf("  Thread 1: Catching packets from Network\n");
-  printf("  Thread 2: Extracting and printing from RingBuffer\n\n");
+  if (!quiet) {
+    printf("Receiver is active!\n");
+    printf("  Thread 1: Catching packets from Network\n");
+    printf("  Thread 2: Extracting and processing from RingBuffer\n\n");
+  }
 
   // 3. Start WORKER 2: The Processor Thread (Consumer)
   std::thread processor([&]() {
     MarketDataMsg msg;
     while (true) {
       if (rb.pop(msg)) {
-        printf(" [POPPED FROM BUS] Seq: %u, Symbol: %u, Price: %u\n", 
-               msg.seq, msg.symbol_id, msg.price);
+        if (!quiet) {
+          printf(" [POPPED FROM BUS] Seq: %u, Symbol: %u, Price: %u\n", 
+                 msg.seq, msg.symbol_id, msg.price);
+        }
       }
     }
   });
