@@ -1,6 +1,6 @@
 # Per-Core Lock-Free Event Bus
 
-A high-performance, low-latency event distribution system designed for financial market data and real-time packet processing. This project leverages a **lock-free SPSC (Single Producer Single Consumer) architecture** and Linux-native optimizations to minimize contention and maximize throughput.
+A high-performance, low-latency C++23 event distribution system designed for financial market data and real-time packet processing. This project leverages a **lock-free SPSC (Single Producer Single Consumer) architecture** and Linux-native optimizations to minimize contention and maximize throughput.
 
 ## Overview
 
